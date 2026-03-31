@@ -1,0 +1,2308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PhishGuard — Real-Time URL Security Scanner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #07090f;
+  --bg2: #0d1017;
+  --bg3: #111520;
+  --bg4: #161b2e;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.12);
+  --text: #e2e8f0;
+  --muted: #64748b;
+  --faint: #2d3748;
+  --safe: #10b981;
+  --safe-bg: rgba(16,185,129,0.08);
+  --safe-border: rgba(16,185,129,0.25);
+  --warn: #f59e0b;
+  --warn-bg: rgba(245,158,11,0.08);
+  --warn-border: rgba(245,158,11,0.25);
+  --danger: #ef4444;
+  --danger-bg: rgba(239,68,68,0.08);
+  --danger-border: rgba(239,68,68,0.3);
+  --blue: #3b82f6;
+  --blue-bg: rgba(59,130,246,0.08);
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'IBM Plex Sans', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Grid bg */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(59,130,246,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59,130,246,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none; z-index: 0;
+}
+
+/* ── NAV ── */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 40px; height: 60px;
+  background: rgba(7,9,15,0.92);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+}
+.nav-brand {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--mono); font-size: 14px; font-weight: 600;
+  color: var(--text); letter-spacing: 0.02em;
+}
+.brand-shield {
+  width: 28px; height: 28px; position: relative;
+  display: flex; align-items: center; justify-content: center;
+}
+.brand-shield svg { width: 28px; height: 28px; }
+.nav-status {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--mono); font-size: 11px; color: var(--safe);
+}
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--safe); animation: blink 2s ease infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+/* ── HERO ── */
+.hero {
+  position: relative; z-index: 1;
+  padding: 72px 40px 48px;
+  text-align: center;
+}
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--blue-bg); border: 1px solid rgba(59,130,246,0.2);
+  color: var(--blue); font-family: var(--mono); font-size: 11px;
+  padding: 5px 14px; border-radius: 100px;
+  margin-bottom: 28px; letter-spacing: 0.08em;
+  animation: fadeDown 0.5s ease forwards;
+}
+.hero-title {
+  font-family: var(--sans); font-size: clamp(32px, 5vw, 56px);
+  font-weight: 600; line-height: 1.1; letter-spacing: -0.03em;
+  color: #fff; margin-bottom: 16px;
+  animation: fadeDown 0.55s 0.1s ease both;
+}
+.hero-title span { color: var(--blue); }
+.hero-sub {
+  font-size: 16px; font-weight: 300; color: var(--muted);
+  max-width: 500px; margin: 0 auto 48px; line-height: 1.75;
+  animation: fadeDown 0.55s 0.2s ease both;
+}
+
+@keyframes fadeDown {
+  from { opacity: 0; transform: translateY(-16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── SCANNER ── */
+.scanner-wrap {
+  max-width: 760px; margin: 0 auto;
+  animation: fadeDown 0.6s 0.3s ease both;
+}
+.scanner-box {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(59,130,246,0.05), 0 32px 64px rgba(0,0,0,0.5);
+}
+.scanner-header {
+  padding: 14px 20px;
+  background: var(--bg3);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.scanner-dots { display: flex; gap: 6px; }
+.sdot { width: 10px; height: 10px; border-radius: 50%; }
+.sdot:nth-child(1) { background: #ff5f57; }
+.sdot:nth-child(2) { background: #ffbd2e; }
+.sdot:nth-child(3) { background: #28c840; }
+.scanner-title {
+  font-family: var(--mono); font-size: 12px; color: var(--muted);
+  flex: 1; text-align: center; margin-right: 52px;
+}
+.scanner-body { padding: 28px; }
+
+.input-row {
+  display: flex; gap: 10px; margin-bottom: 16px;
+}
+.url-input {
+  flex: 1; background: var(--bg3); border: 1px solid var(--border2);
+  border-radius: 10px; padding: 14px 18px;
+  font-family: var(--mono); font-size: 13px; color: var(--text);
+  outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+}
+.url-input::placeholder { color: var(--muted); }
+.url-input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(59,130,246,0.12); }
+.scan-btn {
+  background: var(--blue); color: #fff;
+  font-family: var(--mono); font-size: 13px; font-weight: 600;
+  padding: 14px 24px; border: none; border-radius: 10px;
+  cursor: pointer; letter-spacing: 0.04em;
+  transition: background 0.15s, transform 0.1s, box-shadow 0.2s;
+  white-space: nowrap;
+}
+.scan-btn:hover { background: #2563eb; box-shadow: 0 4px 20px rgba(59,130,246,0.35); }
+.scan-btn:active { transform: scale(0.98); }
+.scan-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+.quick-tests {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.qt-label { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.qt-btn {
+  font-family: var(--mono); font-size: 11px;
+  background: var(--bg3); border: 1px solid var(--border);
+  color: var(--muted); padding: 4px 10px; border-radius: 6px;
+  cursor: pointer; transition: border-color 0.15s, color 0.15s;
+}
+.qt-btn:hover { border-color: var(--border2); color: var(--text); }
+
+/* ── PROGRESS BAR ── */
+.scan-progress {
+  display: none; margin-top: 20px;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 10px; padding: 16px 20px;
+}
+.scan-progress.active { display: block; }
+.progress-label { font-family: var(--mono); font-size: 12px; color: var(--blue); margin-bottom: 10px; }
+.progress-bar-wrap { background: var(--bg4); border-radius: 100px; height: 4px; overflow: hidden; margin-bottom: 12px; }
+.progress-bar { height: 100%; background: linear-gradient(90deg, var(--blue), #60a5fa); border-radius: 100px; width: 0%; transition: width 0.3s ease; }
+.progress-steps { display: flex; flex-direction: column; gap: 6px; }
+.pstep {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+}
+.pstep-icon { width: 14px; text-align: center; }
+.pstep.done { color: var(--safe); }
+.pstep.active { color: var(--text); }
+
+/* ── RESULT ── */
+#result { display: none; margin-top: 20px; }
+
+.result-verdict {
+  border-radius: 12px; padding: 24px 28px;
+  display: flex; align-items: center; gap: 20px;
+  margin-bottom: 16px;
+}
+.result-verdict.safe { background: var(--safe-bg); border: 1px solid var(--safe-border); }
+.result-verdict.suspicious { background: var(--warn-bg); border: 1px solid var(--warn-border); }
+.result-verdict.phishing { background: var(--danger-bg); border: 1px solid var(--danger-border); }
+
+.verdict-icon {
+  width: 52px; height: 52px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; flex-shrink: 0;
+}
+.safe .verdict-icon { background: rgba(16,185,129,0.15); }
+.suspicious .verdict-icon { background: rgba(245,158,11,0.15); }
+.phishing .verdict-icon { background: rgba(239,68,68,0.15); }
+
+.verdict-text { flex: 1; }
+.verdict-label {
+  font-family: var(--mono); font-size: 11px; font-weight: 600;
+  letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 4px;
+}
+.safe .verdict-label { color: var(--safe); }
+.suspicious .verdict-label { color: var(--warn); }
+.phishing .verdict-label { color: var(--danger); }
+
+.verdict-title { font-size: 20px; font-weight: 600; color: #fff; margin-bottom: 4px; }
+.verdict-url { font-family: var(--mono); font-size: 12px; color: var(--muted); word-break: break-all; }
+
+.verdict-score {
+  text-align: right; flex-shrink: 0;
+}
+.score-num {
+  font-family: var(--mono); font-size: 40px; font-weight: 600;
+  line-height: 1;
+}
+.safe .score-num { color: var(--safe); }
+.suspicious .score-num { color: var(--warn); }
+.phishing .score-num { color: var(--danger); }
+.score-label { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+
+/* Feature analysis grid */
+.analysis-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.feature-row {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 16px;
+  display: flex; align-items: flex-start; gap: 12px;
+  transition: border-color 0.2s;
+}
+.feature-row:hover { border-color: var(--border2); }
+.feature-status { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; margin-top: 1px; }
+.feature-status.pass { background: rgba(16,185,129,0.15); color: var(--safe); }
+.feature-status.fail { background: rgba(239,68,68,0.15); color: var(--danger); }
+.feature-status.warn { background: rgba(245,158,11,0.15); color: var(--warn); }
+.feature-status.info { background: rgba(59,130,246,0.15); color: var(--blue); }
+
+.feature-info { flex: 1; }
+.feature-name { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 2px; }
+.feature-detail { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+
+.feature-weight {
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+  flex-shrink: 0; text-align: right;
+}
+.feature-weight span { display: block; font-size: 13px; font-weight: 500; }
+.feature-weight.negative span { color: var(--danger); }
+.feature-weight.positive span { color: var(--safe); }
+.feature-weight.neutral span { color: var(--muted); }
+
+/* Risk breakdown */
+.risk-breakdown {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 10px; padding: 20px; margin-top: 8px;
+}
+.rb-title { font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 14px; }
+.rb-bar-row { margin-bottom: 10px; }
+.rb-bar-label { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px; }
+.rb-bar-label span:first-child { color: var(--text); }
+.rb-bar-label span:last-child { font-family: var(--mono); color: var(--muted); font-size: 11px; }
+.rb-bar-track { background: var(--bg4); border-radius: 100px; height: 5px; overflow: hidden; }
+.rb-bar-fill { height: 100%; border-radius: 100px; transition: width 0.8s cubic-bezier(0.34,1.56,0.64,1); width: 0; }
+.rb-bar-fill.danger { background: var(--danger); }
+.rb-bar-fill.warn   { background: var(--warn); }
+.rb-bar-fill.safe   { background: var(--safe); }
+.rb-bar-fill.blue   { background: var(--blue); }
+
+/* Recommendation */
+.recommendation {
+  border-radius: 10px; padding: 16px 20px;
+  margin-top: 8px; display: flex; gap: 12px; align-items: flex-start;
+}
+.recommendation.safe { background: var(--safe-bg); border: 1px solid var(--safe-border); }
+.recommendation.suspicious { background: var(--warn-bg); border: 1px solid var(--warn-border); }
+.recommendation.phishing { background: var(--danger-bg); border: 1px solid var(--danger-border); }
+.rec-icon { font-size: 18px; margin-top: 2px; }
+.rec-text { font-size: 13px; line-height: 1.7; }
+.rec-text strong { display: block; margin-bottom: 4px; font-size: 14px; }
+.recommendation.safe strong { color: var(--safe); }
+.recommendation.suspicious strong { color: var(--warn); }
+.recommendation.phishing strong { color: var(--danger); }
+.rec-text p { color: var(--muted); }
+
+/* ── HISTORY ── */
+.history-section {
+  max-width: 760px; margin: 32px auto 0;
+  display: none;
+}
+.history-section.visible { display: block; }
+.history-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.history-title { font-family: var(--mono); font-size: 12px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
+.history-clear { font-family: var(--mono); font-size: 11px; color: var(--muted); cursor: pointer; background: none; border: none; transition: color 0.15s; }
+.history-clear:hover { color: var(--danger); }
+.history-list { display: flex; flex-direction: column; gap: 6px; }
+.history-item {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 16px;
+  display: flex; align-items: center; gap: 12px;
+  cursor: pointer; transition: border-color 0.15s;
+}
+.history-item:hover { border-color: var(--border2); }
+.history-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.history-dot.safe { background: var(--safe); }
+.history-dot.suspicious { background: var(--warn); }
+.history-dot.phishing { background: var(--danger); }
+.history-url { font-family: var(--mono); font-size: 12px; color: var(--text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-verdict { font-family: var(--mono); font-size: 11px; }
+.history-verdict.safe { color: var(--safe); }
+.history-verdict.suspicious { color: var(--warn); }
+.history-verdict.phishing { color: var(--danger); }
+.history-score { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+/* ── STATS ROW ── */
+.stats-row {
+  max-width: 760px; margin: 48px auto 0;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+}
+.stat-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 20px;
+}
+.stat-val { font-family: var(--mono); font-size: 28px; font-weight: 600; color: #fff; margin-bottom: 4px; }
+.stat-lab { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+
+/* ── FOOTER ── */
+.footer {
+  position: relative; z-index: 1;
+  margin-top: 80px; padding: 28px 40px;
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+}
+.footer-disclaimer { max-width: 500px; line-height: 1.6; }
+
+/* ── LOGIN ACTIVITY ── */
+.login-section {
+  max-width: 760px; margin: 40px auto 0;
+  padding: 0 0 48px;
+}
+.login-panel {
+  background: var(--bg2); border: 1px solid var(--border2);
+  border-radius: 16px; overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(59,130,246,0.04), 0 24px 48px rgba(0,0,0,0.4);
+}
+.login-panel-header {
+  background: var(--bg3); border-bottom: 1px solid var(--border);
+  padding: 14px 20px; display: flex; align-items: center; justify-content: space-between;
+}
+.login-panel-title {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--mono); font-size: 12px; color: var(--muted);
+}
+.login-panel-title span { color: var(--text); font-weight: 500; }
+.login-panel-actions { display: flex; gap: 8px; }
+.lpa-btn {
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+  background: var(--bg4); border: 1px solid var(--border);
+  padding: 4px 12px; border-radius: 6px; cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.lpa-btn:hover { color: var(--text); border-color: var(--border2); }
+.lpa-btn.active { color: var(--blue); border-color: rgba(59,130,246,0.3); background: var(--blue-bg); }
+
+/* Summary cards */
+.login-summary {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 1px; background: var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.ls-card {
+  background: var(--bg2); padding: 18px 20px;
+  transition: background 0.15s;
+}
+.ls-card:hover { background: var(--bg3); }
+.ls-val { font-family: var(--mono); font-size: 22px; font-weight: 600; color: #fff; line-height: 1; margin-bottom: 4px; }
+.ls-lab { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+
+/* Activity table */
+.login-table-wrap { overflow-x: auto; }
+.login-table {
+  width: 100%; border-collapse: collapse;
+  font-size: 13px;
+}
+.login-table th {
+  font-family: var(--mono); font-size: 10px; font-weight: 500;
+  color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase;
+  padding: 10px 16px; text-align: left;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg3);
+}
+.login-table td {
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.login-table tr:last-child td { border-bottom: none; }
+.login-table tr { transition: background 0.12s; }
+.login-table tr:hover td { background: var(--bg3); }
+
+.lt-user { display: flex; align-items: center; gap: 10px; }
+.lt-avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 11px; font-weight: 600;
+  flex-shrink: 0;
+}
+.lt-name { font-weight: 500; color: var(--text); }
+.lt-email { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+
+.lt-time { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.lt-time span { display: block; font-size: 11px; color: var(--faint); margin-top: 2px; }
+
+.lt-location { font-size: 13px; color: var(--text); }
+.lt-location span { display: block; font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+.lt-device { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+
+.lt-status-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--mono); font-size: 10px; font-weight: 500;
+  padding: 3px 9px; border-radius: 100px; letter-spacing: 0.06em;
+}
+.lt-status-badge.success { background: var(--safe-bg); color: var(--safe); border: 1px solid var(--safe-border); }
+.lt-status-badge.failed  { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger-border); }
+.lt-status-badge.suspicious { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn-border); }
+.lt-status-badge.blocked { background: rgba(239,68,68,0.05); color: #f87171; border: 1px solid rgba(239,68,68,0.2); }
+
+.lt-risk-bar { display: flex; align-items: center; gap: 8px; }
+.lt-risk-track {
+  width: 60px; height: 4px; background: var(--bg4);
+  border-radius: 100px; overflow: hidden;
+}
+.lt-risk-fill { height: 100%; border-radius: 100px; }
+.lt-risk-fill.low  { background: var(--safe); }
+.lt-risk-fill.med  { background: var(--warn); }
+.lt-risk-fill.high { background: var(--danger); }
+.lt-risk-num { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+
+.login-table-footer {
+  padding: 14px 20px; border-top: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--bg3);
+}
+.ltf-info { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.ltf-pages { display: flex; gap: 6px; }
+.ltf-page {
+  font-family: var(--mono); font-size: 11px;
+  background: var(--bg4); border: 1px solid var(--border);
+  color: var(--muted); width: 28px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 5px; cursor: pointer; transition: color 0.15s, border-color 0.15s;
+}
+.ltf-page:hover, .ltf-page.active { color: var(--blue); border-color: rgba(59,130,246,0.3); }
+
+/* Scanning animation */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinning { animation: spin 1s linear infinite; display: inline-block; }
+
+/* Fade-in */
+.fade-in { animation: fadeIn 0.4s ease forwards; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── BIOMETRIC AUTH OVERLAY ── */
+#bioAuthOverlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column;
+}
+#bioAuthOverlay::before {
+  content: '';
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(59,130,246,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59,130,246,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+}
+.bio-card {
+  position: relative;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 20px;
+  padding: 48px 44px;
+  width: 100%; max-width: 400px;
+  text-align: center;
+  box-shadow: 0 0 0 1px rgba(59,130,246,0.06), 0 40px 80px rgba(0,0,0,0.6);
+  animation: fadeDown 0.5s ease forwards;
+}
+.bio-brand {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  font-family: var(--mono); font-size: 13px; font-weight: 600;
+  color: var(--muted); letter-spacing: 0.05em;
+  margin-bottom: 36px;
+}
+.bio-icon-wrap {
+  position: relative;
+  width: 88px; height: 88px;
+  margin: 0 auto 28px;
+  display: flex; align-items: center; justify-content: center;
+}
+.bio-ring {
+  position: absolute; inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(59,130,246,0.2);
+}
+.bio-ring-spin {
+  position: absolute; inset: -4px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: var(--blue);
+  border-right-color: rgba(59,130,246,0.3);
+  animation: spin 1.6s linear infinite;
+  opacity: 0;
+}
+.bio-icon-wrap.scanning .bio-ring-spin { opacity: 1; }
+.bio-icon-wrap.scanning .bio-fp-svg { filter: drop-shadow(0 0 8px rgba(59,130,246,0.5)); }
+.bio-icon-wrap.success .bio-fp-svg { filter: drop-shadow(0 0 10px rgba(16,185,129,0.6)); }
+.bio-icon-wrap.error .bio-fp-svg { filter: drop-shadow(0 0 10px rgba(239,68,68,0.5)); }
+
+.bio-fp-svg { width: 52px; height: 52px; transition: filter 0.3s; }
+
+.bio-title {
+  font-size: 22px; font-weight: 600; color: #fff;
+  letter-spacing: -0.02em; margin-bottom: 8px;
+}
+.bio-sub {
+  font-size: 13px; color: var(--muted); line-height: 1.65;
+  margin-bottom: 32px; max-width: 280px; margin-left: auto; margin-right: auto;
+}
+
+.bio-status-msg {
+  font-family: var(--mono); font-size: 12px;
+  color: var(--muted); min-height: 18px;
+  margin-bottom: 28px; transition: color 0.2s;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.bio-status-msg.active { color: var(--blue); }
+.bio-status-msg.success { color: var(--safe); }
+.bio-status-msg.error { color: var(--danger); }
+
+.bio-btn {
+  width: 100%; background: var(--blue); color: #fff;
+  font-family: var(--mono); font-size: 13px; font-weight: 600;
+  padding: 14px 24px; border: none; border-radius: 10px;
+  cursor: pointer; letter-spacing: 0.04em;
+  transition: background 0.15s, box-shadow 0.2s, transform 0.1s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.bio-btn:hover { background: #2563eb; box-shadow: 0 4px 20px rgba(59,130,246,0.4); }
+.bio-btn:active { transform: scale(0.98); }
+.bio-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
+
+.bio-alt {
+  margin-top: 16px;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+}
+.bio-alt-btn {
+  background: none; border: none; color: var(--muted);
+  font-family: var(--mono); font-size: 11px; cursor: pointer;
+  text-decoration: underline; text-underline-offset: 2px;
+  transition: color 0.15s;
+}
+.bio-alt-btn:hover { color: var(--text); }
+
+/* PIN fallback */
+.bio-pin-wrap {
+  display: none; flex-direction: column; align-items: center; gap: 16px; width: 100%;
+}
+.bio-pin-wrap.visible { display: flex; }
+.bio-pin-inputs {
+  display: flex; gap: 10px; justify-content: center;
+}
+.bio-pin-digit {
+  width: 44px; height: 52px;
+  background: var(--bg3); border: 1px solid var(--border2);
+  border-radius: 8px; text-align: center;
+  font-family: var(--mono); font-size: 20px; font-weight: 600; color: var(--text);
+  outline: none; caret-color: var(--blue);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.bio-pin-digit:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+.bio-pin-hint { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+
+/* Scan line animation on fingerprint */
+@keyframes scanLine {
+  0%   { transform: translateY(-22px); opacity: 0.8; }
+  100% { transform: translateY(22px);  opacity: 0.2; }
+}
+.bio-scan-line {
+  position: absolute;
+  left: 18px; right: 18px; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--blue), transparent);
+  top: 50%; margin-top: -11px;
+  animation: scanLine 1.2s ease-in-out infinite alternate;
+  opacity: 0; transition: opacity 0.3s;
+  pointer-events: none;
+}
+.bio-icon-wrap.scanning .bio-scan-line { opacity: 1; }
+
+/* ── LOGIN SCREEN ── */
+#loginOverlay {
+  position: fixed; inset: 0; z-index: 10000;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+}
+#loginOverlay::before {
+  content: '';
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(59,130,246,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59,130,246,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+}
+.login-card {
+  position: relative;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 20px;
+  padding: 44px 44px 40px;
+  width: 100%; max-width: 400px;
+  box-shadow: 0 0 0 1px rgba(59,130,246,0.06), 0 40px 80px rgba(0,0,0,0.6);
+  animation: fadeDown 0.5s ease forwards;
+}
+.login-brand {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  font-family: var(--mono); font-size: 13px; font-weight: 600;
+  color: var(--muted); letter-spacing: 0.05em;
+  margin-bottom: 32px;
+}
+.login-heading {
+  font-size: 22px; font-weight: 600; color: #fff;
+  letter-spacing: -0.02em; margin-bottom: 6px; text-align: center;
+}
+.login-sub {
+  font-size: 13px; color: var(--muted); text-align: center;
+  margin-bottom: 28px; line-height: 1.6;
+}
+.login-field { margin-bottom: 14px; }
+.login-label {
+  display: block;
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+  letter-spacing: 0.08em; text-transform: uppercase;
+  margin-bottom: 7px;
+}
+.login-input {
+  width: 100%; background: var(--bg3); border: 1px solid var(--border2);
+  border-radius: 10px; padding: 13px 16px;
+  font-family: var(--mono); font-size: 13px; color: var(--text);
+  outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+}
+.login-input::placeholder { color: var(--muted); }
+.login-input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(59,130,246,0.12); }
+.login-input.error { border-color: var(--danger); box-shadow: 0 0 0 3px rgba(239,68,68,0.1); }
+
+.login-pw-wrap { position: relative; }
+.login-pw-toggle {
+  position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer; color: var(--muted);
+  display: flex; align-items: center; transition: color 0.15s;
+  padding: 0;
+}
+.login-pw-toggle:hover { color: var(--text); }
+
+.login-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 22px; margin-top: -4px;
+}
+.login-remember {
+  display: flex; align-items: center; gap: 7px;
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+  cursor: pointer; user-select: none;
+}
+.login-remember input[type="checkbox"] {
+  accent-color: var(--blue); width: 13px; height: 13px; cursor: pointer;
+}
+.login-forgot {
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+  background: none; border: none; cursor: pointer;
+  text-decoration: underline; text-underline-offset: 2px;
+  transition: color 0.15s;
+}
+.login-forgot:hover { color: var(--blue); }
+
+.login-btn {
+  width: 100%; background: var(--blue); color: #fff;
+  font-family: var(--mono); font-size: 13px; font-weight: 600;
+  padding: 14px; border: none; border-radius: 10px;
+  cursor: pointer; letter-spacing: 0.04em;
+  transition: background 0.15s, box-shadow 0.2s, transform 0.1s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.login-btn:hover { background: #2563eb; box-shadow: 0 4px 20px rgba(59,130,246,0.4); }
+.login-btn:active { transform: scale(0.98); }
+.login-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
+
+.login-error-msg {
+  background: var(--danger-bg); border: 1px solid var(--danger-border);
+  border-radius: 8px; padding: 10px 14px;
+  font-family: var(--mono); font-size: 12px; color: var(--danger);
+  margin-bottom: 16px; display: none;
+  align-items: center; gap: 8px;
+}
+.login-error-msg.visible { display: flex; }
+
+.login-divider {
+  display: flex; align-items: center; gap: 12px;
+  margin: 20px 0;
+}
+.login-divider::before, .login-divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+.login-divider span {
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+  white-space: nowrap;
+}
+
+.login-sso-btn {
+  width: 100%; background: var(--bg3); color: var(--muted);
+  border: 1px solid var(--border2); border-radius: 10px;
+  font-family: var(--mono); font-size: 12px;
+  padding: 12px; cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  margin-bottom: 10px;
+}
+.login-sso-btn:hover { border-color: rgba(59,130,246,0.3); color: var(--text); background: var(--bg4); }
+
+.login-footer-note {
+  text-align: center; margin-top: 20px;
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+}
+.login-footer-note a {
+  color: var(--blue); text-decoration: none; cursor: pointer;
+}
+.login-footer-note a:hover { text-decoration: underline; }
+
+/* Shake animation for wrong credentials */
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  20%      { transform: translateX(-8px); }
+  40%      { transform: translateX(8px); }
+  60%      { transform: translateX(-5px); }
+  80%      { transform: translateX(5px); }
+}
+.login-card.shake { animation: shake 0.4s ease; }
+
+/* Loading spinner inside button */
+.btn-spinner {
+  width: 14px; height: 14px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: none;
+}
+.login-btn.loading .btn-spinner { display: block; }
+.login-btn.loading .btn-label { display: none; }
+
+/* Forgot password panel */
+#forgotPanel {
+  display: none;
+}
+#forgotPanel.visible { display: block; }
+#loginForm.hidden { display: none; }
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN OVERLAY ── -->
+<div id="loginOverlay">
+  <div class="login-card" id="loginCard">
+
+    <div class="login-brand">
+      <svg width="18" height="18" viewBox="0 0 28 28" fill="none">
+        <path d="M14 2L4 6.5V13.5C4 18.75 8.4 23.65 14 25C19.6 23.65 24 18.75 24 13.5V6.5L14 2Z" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M10 14l2.5 2.5L18 11" stroke="#3b82f6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      PhishGuard
+    </div>
+
+    <!-- Login form -->
+    <div id="loginForm">
+      <div class="login-heading">Welcome back</div>
+      <div class="login-sub">Sign in to access the threat detection dashboard</div>
+
+      <div class="login-error-msg" id="loginError">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.3"/><path d="M7 4v3M7 9.5v.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        <span id="loginErrorText">Invalid email or password.</span>
+      </div>
+
+      <div class="login-field">
+        <label class="login-label" for="loginEmail">Email address</label>
+        <input class="login-input" id="loginEmail" type="email" placeholder="you@company.com" autocomplete="email" onkeydown="loginKeydown(event)">
+      </div>
+
+      <div class="login-field">
+        <label class="login-label" for="loginPassword">Password</label>
+        <div class="login-pw-wrap">
+          <input class="login-input" id="loginPassword" type="password" placeholder="Enter your password" autocomplete="current-password" style="padding-right:44px" onkeydown="loginKeydown(event)">
+          <button class="login-pw-toggle" onclick="togglePwVisibility()" id="pwToggle" tabindex="-1" aria-label="Toggle password visibility">
+            <svg id="pwEyeIcon" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.3"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="login-row">
+        <label class="login-remember">
+          <input type="checkbox" id="rememberMe"> Remember me
+        </label>
+        <button class="login-forgot" onclick="showForgotPassword()">Forgot password?</button>
+      </div>
+
+      <button class="login-btn" id="loginBtn" onclick="submitLogin()">
+        <div class="btn-spinner"></div>
+        <span class="btn-label" style="display:flex;align-items:center;gap:8px">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="5" width="12" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M4 5V3.5a4 4 0 018 0V5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          Sign in
+        </span>
+      </button>
+
+      <div class="login-divider"><span>or continue with</span></div>
+
+      <button class="login-sso-btn" onclick="ssoLogin('Google')">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M13 7.14c0-.49-.04-.96-.12-1.41H7v2.67h3.36a2.88 2.88 0 01-1.25 1.89v1.57h2.02C12.33 10.69 13 9.05 13 7.14z" fill="#4285F4"/><path d="M7 13c1.68 0 3.09-.56 4.12-1.51l-2.02-1.57c-.56.38-1.27.6-2.1.6-1.61 0-2.97-1.09-3.46-2.55H1.47v1.62A6 6 0 007 13z" fill="#34A853"/><path d="M3.54 7.97A3.6 3.6 0 013.35 7c0-.34.06-.67.19-.97V4.41H1.47A6 6 0 001 7c0 .97.23 1.88.47 2.59l2.07-1.62z" fill="#FBBC05"/><path d="M7 3.48c.91 0 1.72.31 2.36.93l1.77-1.77A6 6 0 007 1a6 6 0 00-5.53 3.41l2.07 1.62C4.03 4.57 5.39 3.48 7 3.48z" fill="#EA4335"/></svg>
+        Sign in with Google
+      </button>
+      <button class="login-sso-btn" onclick="ssoLogin('Microsoft')">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="1" width="5.5" height="5.5" fill="#F25022"/><rect x="7.5" y="1" width="5.5" height="5.5" fill="#7FBA00"/><rect x="1" y="7.5" width="5.5" height="5.5" fill="#00A4EF"/><rect x="7.5" y="7.5" width="5.5" height="5.5" fill="#FFB900"/></svg>
+        Sign in with Microsoft
+      </button>
+
+      <div class="login-footer-note">
+        Don't have an account? <a onclick="showSignupToast()">Request access</a>
+      </div>
+    </div>
+
+    <!-- Forgot password panel -->
+    <div id="forgotPanel">
+      <div class="login-heading" style="font-size:18px">Reset password</div>
+      <div class="login-sub">Enter your email and we'll send a reset link.</div>
+
+      <div class="login-field">
+        <label class="login-label" for="forgotEmail">Email address</label>
+        <input class="login-input" id="forgotEmail" type="email" placeholder="you@company.com">
+      </div>
+
+      <button class="login-btn" id="forgotBtn" onclick="submitForgot()">
+        <div class="btn-spinner"></div>
+        <span class="btn-label">Send reset link</span>
+      </button>
+
+      <div class="login-footer-note" style="margin-top:16px">
+        <a onclick="showLoginForm()">← Back to sign in</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── BIOMETRIC AUTH OVERLAY ── -->
+<div id="bioAuthOverlay">
+  <div class="bio-card">
+    <!-- Brand -->
+    <div class="bio-brand">
+      <svg width="18" height="18" viewBox="0 0 28 28" fill="none">
+        <path d="M14 2L4 6.5V13.5C4 18.75 8.4 23.65 14 25C19.6 23.65 24 18.75 24 13.5V6.5L14 2Z" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M10 14l2.5 2.5L18 11" stroke="#3b82f6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      PhishGuard
+    </div>
+
+    <!-- Fingerprint icon -->
+    <div class="bio-icon-wrap" id="bioIconWrap">
+      <div class="bio-ring"></div>
+      <div class="bio-ring-spin"></div>
+      <div class="bio-scan-line"></div>
+      <!-- Fingerprint SVG -->
+      <svg class="bio-fp-svg" id="bioFpSvg" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M26 6C15 6 6 15 6 26" stroke="rgba(59,130,246,0.25)" stroke-width="2" stroke-linecap="round"/>
+        <path d="M46 26C46 15 37 6 26 6" stroke="rgba(59,130,246,0.25)" stroke-width="2" stroke-linecap="round"/>
+        <path d="M26 12C18.3 12 12 18.3 12 26" stroke="rgba(59,130,246,0.4)" stroke-width="2" stroke-linecap="round"/>
+        <path d="M40 26C40 18.3 33.7 12 26 12" stroke="rgba(59,130,246,0.4)" stroke-width="2" stroke-linecap="round"/>
+        <path d="M26 18C21.6 18 18 21.6 18 26" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/>
+        <path d="M34 26C34 21.6 30.4 18 26 18" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/>
+        <path d="M22 26C22 23.8 23.8 22 26 22C28.2 22 30 23.8 30 26V30" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/>
+        <path d="M18 32C18.5 35.5 22 38 26 38C29 38 31.5 36.5 33 34" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/>
+        <path d="M26 26V34" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"/>
+        <path d="M22 30C22 32.2 23.8 34 26 34" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"/>
+        <path d="M8 32C9 38 12 43 16 46" stroke="rgba(59,130,246,0.25)" stroke-width="2" stroke-linecap="round"/>
+        <path d="M44 32C43 38 40 43 36 46" stroke="rgba(59,130,246,0.25)" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </div>
+
+    <!-- Main auth UI -->
+    <div id="bioMainUI">
+      <div class="bio-title">Verify Identity</div>
+      <div class="bio-sub">Use biometric authentication to access PhishGuard's threat detection dashboard.</div>
+
+      <div class="bio-status-msg" id="bioStatusMsg">Touch sensor or use Face ID to continue</div>
+
+      <button class="bio-btn" id="bioAuthBtn" onclick="startBiometricAuth()">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1a3 3 0 100 6 3 3 0 000-6zM3 13c0-2.8 2.2-5 5-5s5 2.2 5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Authenticate with Biometrics
+      </button>
+
+      <div class="bio-alt">
+        <span>Can't use biometrics?</span>
+        <button class="bio-alt-btn" onclick="showPinFallback()">Use PIN instead</button>
+      </div>
+    </div>
+
+    <!-- PIN fallback -->
+    <div class="bio-pin-wrap" id="bioPinWrap">
+      <div class="bio-title" style="font-size:18px">Enter PIN</div>
+      <div class="bio-pin-inputs">
+        <input class="bio-pin-digit" id="pin0" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" oninput="pinInput(0)" onkeydown="pinKey(event,0)">
+        <input class="bio-pin-digit" id="pin1" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" oninput="pinInput(1)" onkeydown="pinKey(event,1)">
+        <input class="bio-pin-digit" id="pin2" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" oninput="pinInput(2)" onkeydown="pinKey(event,2)">
+        <input class="bio-pin-digit" id="pin3" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" oninput="pinInput(3)" onkeydown="pinKey(event,3)">
+      </div>
+      <div class="bio-pin-hint" id="pinHint">Enter 4-digit PIN (demo: 1234)</div>
+      <button class="bio-btn" id="pinSubmitBtn" onclick="submitPin()" style="margin-top:4px">
+        Unlock Dashboard
+      </button>
+      <div class="bio-alt">
+        <button class="bio-alt-btn" onclick="showBiometricMain()">← Back to biometrics</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<nav>
+  <div class="nav-brand">
+    <div class="brand-shield">
+      <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M14 2L4 6.5V13.5C4 18.75 8.4 23.65 14 25C19.6 23.65 24 18.75 24 13.5V6.5L14 2Z" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M10 14l2.5 2.5L18 11" stroke="#3b82f6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    PhishGuard
+  </div>
+  <div class="nav-status">
+    <span class="status-dot"></span>
+    Detection Engine Active
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-badge">⚡ Real-Time URL Analysis</div>
+  <h1 class="hero-title">Detect <span>Phishing URLs</span><br>Before They Detect You</h1>
+  <p class="hero-sub">Paste any URL to instantly analyze HTTPS status, domain age, suspicious keywords, redirects, and 12+ more threat signals.</p>
+</div>
+
+<!-- SCANNER -->
+<div class="scanner-wrap" style="position:relative;z-index:1;padding:0 40px">
+  <div class="scanner-box">
+    <div class="scanner-header">
+      <div class="scanner-dots">
+        <div class="sdot"></div><div class="sdot"></div><div class="sdot"></div>
+      </div>
+      <div class="scanner-title">phishguard — url scanner v2.4.1</div>
+    </div>
+    <div class="scanner-body">
+      <div class="input-row">
+        <input class="url-input" id="urlInput" type="text" placeholder="https://example.com or paste any URL..." autocomplete="off" spellcheck="false">
+        <button class="scan-btn" id="scanBtn" onclick="startScan()">Scan URL →</button>
+      </div>
+      <div class="quick-tests">
+        <span class="qt-label">Try:</span>
+        <button class="qt-btn" onclick="tryUrl('https://www.google.com')">google.com</button>
+        <button class="qt-btn" onclick="tryUrl('http://paypa1-secure-login.com/verify?account=reset')">paypa1 (phish)</button>
+        <button class="qt-btn" onclick="tryUrl('https://github.com')">github.com</button>
+        <button class="qt-btn" onclick="tryUrl('http://bankofamerica-secure.suspicious-domain.tk/login')">bank phish</button>
+        <button class="qt-btn" onclick="tryUrl('https://amazon.com')">amazon.com</button>
+      </div>
+
+      <!-- Progress -->
+      <div class="scan-progress" id="scanProgress">
+        <div class="progress-label" id="progressLabel">⟳ Initializing scanner...</div>
+        <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
+        <div class="progress-steps" id="progressSteps"></div>
+      </div>
+
+      <!-- Result -->
+      <div id="result"></div>
+    </div>
+  </div>
+
+  <!-- History -->
+  <div class="history-section" id="historySection">
+    <div class="history-header">
+      <span class="history-title">// Recent Scans</span>
+      <button class="history-clear" onclick="clearHistory()">Clear history</button>
+    </div>
+    <div class="history-list" id="historyList"></div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row" id="statsRow" style="padding-bottom:40px">
+    <div class="stat-card">
+      <div class="stat-val" id="statTotal">0</div>
+      <div class="stat-lab">URLs scanned</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" id="statPhishing" style="color:var(--danger)">0</div>
+      <div class="stat-lab">Threats detected</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" id="statSafe" style="color:var(--safe)">0</div>
+      <div class="stat-lab">Safe URLs</div>
+    </div>
+  </div>
+</div>
+
+<!-- LOGIN ACTIVITY -->
+<div class="login-section" style="position:relative;z-index:1;padding:0 40px 48px">
+  <div class="login-panel">
+    <div class="login-panel-header">
+      <div class="login-panel-title">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="#64748b" stroke-width="1.2"/><path d="M7 4v3.5l2 1.5" stroke="#64748b" stroke-width="1.2" stroke-linecap="round"/></svg>
+        <span>Login Activity</span> &mdash; last 30 days
+      </div>
+      <div class="login-panel-actions">
+        <button class="lpa-btn active" onclick="filterLogins('all',this)">All</button>
+        <button class="lpa-btn" onclick="filterLogins('failed',this)">Failed</button>
+        <button class="lpa-btn" onclick="filterLogins('suspicious',this)">Suspicious</button>
+        <button class="lpa-btn" onclick="filterLogins('success',this)">Success</button>
+      </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="login-summary">
+      <div class="ls-card">
+        <div class="ls-val" id="lsTotal">24</div>
+        <div class="ls-lab">Total logins</div>
+      </div>
+      <div class="ls-card">
+        <div class="ls-val" style="color:var(--safe)" id="lsSuccess">17</div>
+        <div class="ls-lab">Successful</div>
+      </div>
+      <div class="ls-card">
+        <div class="ls-val" style="color:var(--danger)" id="lsFailed">4</div>
+        <div class="ls-lab">Failed</div>
+      </div>
+      <div class="ls-card">
+        <div class="ls-val" style="color:var(--warn)" id="lsSuspicious">3</div>
+        <div class="ls-lab">Suspicious</div>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="login-table-wrap">
+      <table class="login-table">
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Time</th>
+            <th>Location</th>
+            <th>Device</th>
+            <th>Status</th>
+            <th>Risk</th>
+          </tr>
+        </thead>
+        <tbody id="loginTableBody"></tbody>
+      </table>
+    </div>
+
+    <div class="login-table-footer">
+      <div class="ltf-info" id="ltfInfo">Showing 1–10 of 24 entries</div>
+      <div class="ltf-pages">
+        <div class="ltf-page active">1</div>
+        <div class="ltf-page">2</div>
+        <div class="ltf-page">3</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <div class="footer-disclaimer">
+    ⚠ PhishGuard uses heuristic analysis. Results are indicative, not definitive. Always exercise caution with unknown URLs. This tool does not make network requests to the target URL.
+  </div>
+  <div>PhishGuard v2.4.1 · 2026</div>
+</div>
+
+<script>
+// ═══════════════════════════════
+// PHISHING DETECTION ENGINE
+// ═══════════════════════════════
+
+const SUSPICIOUS_KEYWORDS = [
+  'login','signin','verify','secure','update','confirm','account',
+  'banking','paypal','amazon','apple','microsoft','google','netflix',
+  'password','credential','wallet','recover','suspended','urgent',
+  'limited','alert','unlock','validate','billing'
+];
+
+const TRUSTED_DOMAINS = [
+  'google.com','github.com','amazon.com','microsoft.com','apple.com',
+  'facebook.com','twitter.com','linkedin.com','youtube.com','netflix.com',
+  'wikipedia.org','reddit.com','stackoverflow.com','cloudflare.com',
+  'mozilla.org','adobe.com','dropbox.com','slack.com','zoom.us'
+];
+
+const SUSPICIOUS_TLDS = ['.tk','.ml','.ga','.cf','.gq','.xyz','.top','.click','.loan','.win','.download','.stream'];
+const FREE_HOSTS = ['000webhostapp.com','weebly.com','wixsite.com','blogspot.com','wordpress.com'];
+
+function parseURL(url) {
+  try {
+    if (!url.startsWith('http')) url = 'https://' + url;
+    const u = new URL(url);
+    return u;
+  } catch(e) { return null; }
+}
+
+function analyzeURL(rawUrl) {
+  let url = rawUrl.trim();
+  if (!url.startsWith('http')) url = 'http://' + url;
+  const parsed = parseURL(url);
+  if (!parsed) return null;
+
+  const hostname = parsed.hostname.toLowerCase();
+  const fullUrl = url.toLowerCase();
+  const path = parsed.pathname + parsed.search;
+
+  const features = [];
+  let riskScore = 0;
+
+  // 1. HTTPS check
+  const isHttps = parsed.protocol === 'https:';
+  features.push({
+    name: 'HTTPS / SSL',
+    detail: isHttps ? 'Connection is encrypted (TLS)' : 'No encryption — data sent in plain text',
+    status: isHttps ? 'pass' : 'fail',
+    weight: isHttps ? -10 : 25,
+    category: 'protocol'
+  });
+  if (!isHttps) riskScore += 25;
+
+  // 2. IP address in URL
+  const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
+  const hasIP = ipRegex.test(hostname);
+  features.push({
+    name: 'IP Address URL',
+    detail: hasIP ? `Host is raw IP: ${hostname}` : 'Domain name used (not raw IP)',
+    status: hasIP ? 'fail' : 'pass',
+    weight: hasIP ? 30 : -5,
+    category: 'domain'
+  });
+  if (hasIP) riskScore += 30;
+
+  // 3. Domain length
+  const domainLen = hostname.length;
+  const longDomain = domainLen > 30;
+  features.push({
+    name: 'Domain Length',
+    detail: `${domainLen} characters — ${longDomain ? 'unusually long domain' : 'normal length'}`,
+    status: longDomain ? 'warn' : 'pass',
+    weight: longDomain ? 15 : 0,
+    category: 'domain'
+  });
+  if (longDomain) riskScore += 15;
+
+  // 4. Suspicious TLD
+  const hasSuspTLD = SUSPICIOUS_TLDS.some(tld => hostname.endsWith(tld));
+  const tldMatch = SUSPICIOUS_TLDS.find(tld => hostname.endsWith(tld)) || '';
+  features.push({
+    name: 'TLD Risk Level',
+    detail: hasSuspTLD ? `High-risk TLD detected: ${tldMatch}` : 'TLD appears normal',
+    status: hasSuspTLD ? 'fail' : 'pass',
+    weight: hasSuspTLD ? 25 : 0,
+    category: 'domain'
+  });
+  if (hasSuspTLD) riskScore += 25;
+
+  // 5. Subdomain depth
+  const parts = hostname.replace(/^www\./, '').split('.');
+  const subdomainDepth = parts.length - 2;
+  const deepSubdomain = subdomainDepth > 1;
+  features.push({
+    name: 'Subdomain Depth',
+    detail: `${Math.max(0,subdomainDepth)} subdomain level(s) — ${deepSubdomain ? 'layered subdomains detected' : 'normal structure'}`,
+    status: deepSubdomain ? 'warn' : 'pass',
+    weight: deepSubdomain ? 15 : 0,
+    category: 'domain'
+  });
+  if (deepSubdomain) riskScore += 15;
+
+  // 6. Brand name spoofing
+  const brandNames = ['paypal','amazon','google','apple','microsoft','netflix','facebook','instagram','twitter','bank'];
+  const domainBase = hostname.replace(/^www\./, '').split('.')[0];
+  const hasBrand = brandNames.some(b => hostname.includes(b));
+  const isTrusted = TRUSTED_DOMAINS.some(td => hostname === td || hostname.endsWith('.' + td));
+  const isSpoofing = hasBrand && !isTrusted;
+  features.push({
+    name: 'Brand Spoofing',
+    detail: isSpoofing ? `Brand name "${brandNames.find(b=>hostname.includes(b))}" in untrusted domain` : 'No brand impersonation detected',
+    status: isSpoofing ? 'fail' : 'pass',
+    weight: isSpoofing ? 35 : 0,
+    category: 'content'
+  });
+  if (isSpoofing) riskScore += 35;
+
+  // 7. Suspicious keywords in URL
+  const foundKw = SUSPICIOUS_KEYWORDS.filter(kw => fullUrl.includes(kw));
+  const hasKeywords = foundKw.length > 1;
+  features.push({
+    name: 'Suspicious Keywords',
+    detail: foundKw.length > 0 ? `Found: ${foundKw.slice(0,4).join(', ')}` : 'No suspicious keywords in URL',
+    status: foundKw.length > 2 ? 'fail' : foundKw.length > 0 ? 'warn' : 'pass',
+    weight: foundKw.length > 2 ? 20 : foundKw.length > 0 ? 8 : 0,
+    category: 'content'
+  });
+  if (foundKw.length > 2) riskScore += 20; else if (foundKw.length > 0) riskScore += 8;
+
+  // 8. URL length
+  const urlLen = rawUrl.length;
+  const longUrl = urlLen > 75;
+  features.push({
+    name: 'URL Length',
+    detail: `${urlLen} characters — ${longUrl ? 'abnormally long URL' : 'normal URL length'}`,
+    status: urlLen > 100 ? 'fail' : longUrl ? 'warn' : 'pass',
+    weight: urlLen > 100 ? 15 : longUrl ? 8 : 0,
+    category: 'structure'
+  });
+  if (urlLen > 100) riskScore += 15; else if (longUrl) riskScore += 8;
+
+  // 9. Special characters / obfuscation
+  const specialChars = (rawUrl.match(/[@%#!]/g) || []).length;
+  const hasAtSign = rawUrl.includes('@');
+  features.push({
+    name: 'URL Obfuscation',
+    detail: hasAtSign ? 'Contains "@" — classic redirect trick' : specialChars > 2 ? `${specialChars} special characters found` : 'No obfuscation detected',
+    status: hasAtSign ? 'fail' : specialChars > 2 ? 'warn' : 'pass',
+    weight: hasAtSign ? 30 : specialChars > 2 ? 10 : 0,
+    category: 'structure'
+  });
+  if (hasAtSign) riskScore += 30; else if (specialChars > 2) riskScore += 10;
+
+  // 10. Numeric characters in domain
+  const numMatches = (domainBase.match(/\d/g) || []).length;
+  const hasNumerics = numMatches > 1;
+  features.push({
+    name: 'Domain Numerics',
+    detail: hasNumerics ? `${numMatches} digits in domain name` : 'No suspicious numeric patterns',
+    status: hasNumerics ? 'warn' : 'pass',
+    weight: hasNumerics ? 10 : 0,
+    category: 'domain'
+  });
+  if (hasNumerics) riskScore += 10;
+
+  // 11. Free hosting service
+  const isFreeHost = FREE_HOSTS.some(fh => hostname.includes(fh));
+  features.push({
+    name: 'Hosting Type',
+    detail: isFreeHost ? 'Hosted on free platform — common for phishing' : 'No free hosting service detected',
+    status: isFreeHost ? 'warn' : 'pass',
+    weight: isFreeHost ? 20 : 0,
+    category: 'domain'
+  });
+  if (isFreeHost) riskScore += 20;
+
+  // 12. Trusted domain bonus
+  if (isTrusted) {
+    features.push({
+      name: 'Known Trusted Domain',
+      detail: `${hostname} is in the verified trusted domain list`,
+      status: 'pass',
+      weight: -20,
+      category: 'reputation'
+    });
+    riskScore = Math.max(0, riskScore - 20);
+  }
+
+  // 13. Query string depth
+  const paramCount = [...parsed.searchParams.keys()].length;
+  const deepParams = paramCount > 4;
+  features.push({
+    name: 'Query Parameters',
+    detail: paramCount > 0 ? `${paramCount} parameter(s) in URL${deepParams ? ' — unusually many' : ''}` : 'No query parameters',
+    status: deepParams ? 'warn' : 'info',
+    weight: deepParams ? 8 : 0,
+    category: 'structure'
+  });
+  if (deepParams) riskScore += 8;
+
+  riskScore = Math.min(100, Math.max(0, riskScore));
+
+  let verdict, title, recommendation, recTitle;
+  if (riskScore <= 20) {
+    verdict = 'safe';
+    title = 'URL Appears Safe';
+    recTitle = '✓ Safe to Visit';
+    recommendation = 'This URL shows no significant phishing indicators. However, always remain cautious — verify the site content once you visit, especially if asked for credentials.';
+  } else if (riskScore <= 55) {
+    verdict = 'suspicious';
+    title = 'Suspicious URL Detected';
+    recTitle = '⚠ Proceed with Caution';
+    recommendation = 'This URL has several characteristics common to phishing attacks. Do not enter passwords or personal information. Verify the domain independently before proceeding.';
+  } else {
+    verdict = 'phishing';
+    title = 'High Phishing Risk';
+    recTitle = '✕ Do Not Visit';
+    recommendation = 'This URL has multiple strong indicators of a phishing attack. Do not visit this link. Do not click it, do not share credentials, and report it to your email/security team.';
+  }
+
+  // Category risks
+  const catRisks = {};
+  features.forEach(f => {
+    if (!catRisks[f.category]) catRisks[f.category] = 0;
+    if (f.weight > 0) catRisks[f.category] += f.weight;
+  });
+
+  return { url: rawUrl, parsed, hostname, features, riskScore, verdict, title, recommendation, recTitle, catRisks };
+}
+
+// ═══════════════════════════════
+// UI LOGIC
+// ═══════════════════════════════
+
+let history = JSON.parse(localStorage.getItem('pg_history') || '[]');
+let stats = JSON.parse(localStorage.getItem('pg_stats') || '{"total":0,"phishing":0,"safe":0}');
+
+function tryUrl(url) {
+  document.getElementById('urlInput').value = url;
+  startScan();
+}
+
+function updateStats() {
+  document.getElementById('statTotal').textContent = stats.total;
+  document.getElementById('statPhishing').textContent = stats.phishing;
+  document.getElementById('statSafe').textContent = stats.safe;
+}
+updateStats();
+
+function addToHistory(result) {
+  history.unshift({ url: result.url, verdict: result.verdict, score: result.riskScore, time: Date.now() });
+  if (history.length > 10) history = history.slice(0, 10);
+  localStorage.setItem('pg_history', JSON.stringify(history));
+  renderHistory();
+}
+
+function renderHistory() {
+  const hs = document.getElementById('historySection');
+  const hl = document.getElementById('historyList');
+  if (history.length === 0) { hs.classList.remove('visible'); return; }
+  hs.classList.add('visible');
+  hl.innerHTML = history.map((item, i) => `
+    <div class="history-item" onclick="tryUrl('${item.url.replace(/'/g,"\\'")}')">
+      <div class="history-dot ${item.verdict}"></div>
+      <div class="history-url">${item.url}</div>
+      <div class="history-verdict ${item.verdict}">${item.verdict.toUpperCase()}</div>
+      <div class="history-score">${item.score}/100</div>
+    </div>
+  `).join('');
+}
+renderHistory();
+
+function clearHistory() {
+  history = [];
+  localStorage.removeItem('pg_history');
+  renderHistory();
+}
+
+const SCAN_STEPS = [
+  { label: 'Parsing URL structure', time: 320 },
+  { label: 'Checking HTTPS / SSL certificate', time: 280 },
+  { label: 'Analyzing domain reputation', time: 380 },
+  { label: 'Scanning for suspicious keywords', time: 260 },
+  { label: 'Checking for brand spoofing', time: 300 },
+  { label: 'Running heuristic risk model', time: 340 },
+];
+
+function startScan() {
+  const raw = document.getElementById('urlInput').value.trim();
+  if (!raw) { document.getElementById('urlInput').focus(); return; }
+
+  document.getElementById('scanBtn').disabled = true;
+  document.getElementById('result').style.display = 'none';
+  document.getElementById('result').innerHTML = '';
+
+  const prog = document.getElementById('scanProgress');
+  const bar = document.getElementById('progressBar');
+  const label = document.getElementById('progressLabel');
+  const stepsEl = document.getElementById('progressSteps');
+  prog.classList.add('active');
+  bar.style.width = '0%';
+
+  stepsEl.innerHTML = SCAN_STEPS.map((s,i) => `
+    <div class="pstep" id="pstep${i}">
+      <span class="pstep-icon" id="picon${i}">○</span>
+      <span>${s.label}</span>
+    </div>
+  `).join('');
+
+  let elapsed = 0;
+  let stepIndex = 0;
+
+  function runStep() {
+    if (stepIndex >= SCAN_STEPS.length) {
+      bar.style.width = '100%';
+      label.textContent = '✓ Analysis complete';
+      setTimeout(() => {
+        prog.classList.remove('active');
+        showResult(analyzeURL(raw));
+        document.getElementById('scanBtn').disabled = false;
+      }, 300);
+      return;
+    }
+    const step = SCAN_STEPS[stepIndex];
+    const el = document.getElementById('pstep' + stepIndex);
+    const icon = document.getElementById('picon' + stepIndex);
+    el.classList.add('active');
+    icon.innerHTML = '<span class="spinning">⟳</span>';
+    label.textContent = `Scanning: ${step.label}...`;
+
+    setTimeout(() => {
+      el.classList.remove('active');
+      el.classList.add('done');
+      icon.textContent = '✓';
+      elapsed += step.time;
+      bar.style.width = ((stepIndex + 1) / SCAN_STEPS.length * 100) + '%';
+      stepIndex++;
+      runStep();
+    }, step.time);
+  }
+  runStep();
+}
+
+function showResult(result) {
+  if (!result) {
+    document.getElementById('result').style.display = 'block';
+    document.getElementById('result').innerHTML = `<div style="background:var(--danger-bg);border:1px solid var(--danger-border);border-radius:10px;padding:16px 20px;font-family:var(--mono);font-size:13px;color:var(--danger)">✕ Invalid URL — please enter a valid URL starting with http:// or https://</div>`;
+    document.getElementById('scanBtn').disabled = false;
+    return;
+  }
+
+  // Update stats
+  stats.total++;
+  if (result.verdict === 'phishing') stats.phishing++;
+  else if (result.verdict === 'safe') stats.safe++;
+  localStorage.setItem('pg_stats', JSON.stringify(stats));
+  updateStats();
+  addToHistory(result);
+
+  const verdictIcon = result.verdict === 'safe' ? '🛡' : result.verdict === 'suspicious' ? '⚠️' : '☠️';
+  const catLabels = { protocol: 'Protocol', domain: 'Domain', content: 'Content', structure: 'Structure', reputation: 'Reputation' };
+
+  const featuresHTML = result.features.map(f => {
+    const wc = f.weight > 0 ? 'negative' : f.weight < 0 ? 'positive' : 'neutral';
+    const wLabel = f.weight > 0 ? `+${f.weight}` : f.weight < 0 ? `${f.weight}` : '—';
+    return `
+      <div class="feature-row">
+        <div class="feature-status ${f.status}">${f.status === 'pass' ? '✓' : f.status === 'fail' ? '✕' : f.status === 'warn' ? '!' : 'i'}</div>
+        <div class="feature-info">
+          <div class="feature-name">${f.name}</div>
+          <div class="feature-detail">${f.detail}</div>
+        </div>
+        <div class="feature-weight ${wc}"><span>${wLabel}</span>risk pts</div>
+      </div>
+    `;
+  }).join('');
+
+  const catRisks = result.catRisks;
+  const maxRisk = 60;
+  const barsHTML = Object.entries(catLabels).map(([key, label]) => {
+    const val = catRisks[key] || 0;
+    const pct = Math.min(100, (val / maxRisk) * 100);
+    const cls = pct > 60 ? 'danger' : pct > 30 ? 'warn' : pct > 0 ? 'blue' : 'safe';
+    return `
+      <div class="rb-bar-row">
+        <div class="rb-bar-label"><span>${label}</span><span>${val} pts</span></div>
+        <div class="rb-bar-track"><div class="rb-bar-fill ${cls}" data-width="${pct}%"></div></div>
+      </div>
+    `;
+  }).join('');
+
+  const html = `
+    <div class="fade-in">
+      <div class="result-verdict ${result.verdict}">
+        <div class="verdict-icon">${verdictIcon}</div>
+        <div class="verdict-text">
+          <div class="verdict-label">${result.verdict}</div>
+          <div class="verdict-title">${result.title}</div>
+          <div class="verdict-url">${result.url}</div>
+        </div>
+        <div class="verdict-score">
+          <div class="score-num">${result.riskScore}</div>
+          <div class="score-label">/ 100 risk score</div>
+        </div>
+      </div>
+
+      <div style="font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:10px;margin-top:6px">// Feature Analysis (${result.features.length} signals)</div>
+      <div class="analysis-grid">${featuresHTML}</div>
+
+      <div class="risk-breakdown" style="margin-top:8px">
+        <div class="rb-title">// Risk by Category</div>
+        ${barsHTML}
+      </div>
+
+      <div class="recommendation ${result.verdict}" style="margin-top:8px">
+        <div class="rec-icon">${result.verdict === 'safe' ? '✓' : result.verdict === 'suspicious' ? '⚠' : '✕'}</div>
+        <div class="rec-text">
+          <strong>${result.recTitle}</strong>
+          <p>${result.recommendation}</p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const resultEl = document.getElementById('result');
+  resultEl.innerHTML = html;
+  resultEl.style.display = 'block';
+
+  // Animate bars after a tick
+  setTimeout(() => {
+    resultEl.querySelectorAll('.rb-bar-fill').forEach(el => {
+      el.style.width = el.dataset.width;
+    });
+  }, 80);
+}
+
+
+// ═══════════════════════════════
+// LOGIN ACTIVITY ENGINE
+// ═══════════════════════════════
+
+const AVATAR_COLORS = [
+  ['#1e3a5f','#60a5fa'],['#1a3a2a','#34d399'],['#3b1f2b','#f472b6'],
+  ['#2d1f3a','#a78bfa'],['#3a2a1a','#fb923c'],['#1f2d3a','#38bdf8']
+];
+
+const LOGIN_DATA = [
+  { user:'Alex Voss', email:'alex@company.com', time:'2 min ago', date:'Today 09:41', location:'Hyderabad, IN', ip:'103.24.55.12', device:'Chrome / Windows', status:'success', risk:8 },
+  { user:'Priya Sharma', email:'priya@company.com', time:'18 min ago', date:'Today 09:25', location:'Mumbai, IN', ip:'49.36.88.201', device:'Safari / macOS', status:'success', risk:5 },
+  { user:'Unknown', email:'admin@company.com', time:'34 min ago', date:'Today 09:09', location:'Moscow, RU', ip:'185.220.101.45', device:'curl/7.74.0', status:'blocked', risk:97 },
+  { user:'James Wu', email:'james@company.com', time:'1 hr ago', date:'Today 08:47', location:'Singapore, SG', ip:'128.199.45.66', device:'Firefox / Linux', status:'success', risk:12 },
+  { user:'Sara Malik', email:'sara@company.com', time:'2 hrs ago', date:'Today 07:55', location:'Dubai, AE', ip:'91.74.220.18', device:'Chrome / Android', status:'suspicious', risk:64 },
+  { user:'Unknown', email:'root@company.com', time:'3 hrs ago', date:'Today 07:12', location:'Shenzhen, CN', ip:'47.88.225.13', device:'Python-requests/2.28', status:'failed', risk:88 },
+  { user:'Raj Patel', email:'raj@company.com', time:'4 hrs ago', date:'Today 06:30', location:'Bangalore, IN', ip:'117.96.44.21', device:'Chrome / Windows', status:'success', risk:9 },
+  { user:'Unknown', email:'test@company.com', time:'5 hrs ago', date:'Today 05:48', location:'Amsterdam, NL', ip:'185.130.44.108', device:'Go-http-client/1.1', status:'failed', risk:76 },
+  { user:'Emily Chen', email:'emily@company.com', time:'6 hrs ago', date:'Today 04:55', location:'San Francisco, US', ip:'76.14.22.198', device:'Safari / iOS', status:'success', risk:7 },
+  { user:'Unknown', email:'alex@company.com', time:'8 hrs ago', date:'Today 02:33', location:'Bucharest, RO', ip:'178.62.223.12', device:'Chrome / Windows', status:'suspicious', risk:72 },
+  { user:'Dev Kumar', email:'dev@company.com', time:'10 hrs ago', date:'Yesterday 23:58', location:'Chennai, IN', ip:'122.167.33.9', device:'Edge / Windows', status:'success', risk:6 },
+  { user:'Unknown', email:'billing@company.com', time:'12 hrs ago', date:'Yesterday 22:05', location:'Lagos, NG', ip:'41.57.108.29', device:'wget/1.20.3', status:'blocked', risk:94 },
+  { user:'Fatima Al-Hassan', email:'fatima@company.com', time:'14 hrs ago', date:'Yesterday 20:15', location:'Riyadh, SA', ip:'37.186.54.12', device:'Chrome / macOS', status:'success', risk:11 },
+  { user:'Tom Eriksson', email:'tom@company.com', time:'16 hrs ago', date:'Yesterday 18:22', location:'Stockholm, SE', ip:'213.115.21.8', device:'Firefox / Windows', status:'success', risk:4 },
+  { user:'Unknown', email:'sara@company.com', time:'18 hrs ago', date:'Yesterday 16:40', location:'Tehran, IR', ip:'5.160.253.14', device:'Python-urllib/3.9', status:'failed', risk:83 },
+  { user:'Ling Zhang', email:'ling@company.com', time:'20 hrs ago', date:'Yesterday 14:30', location:'Beijing, CN', ip:'39.104.55.22', device:'Chrome / Windows', status:'suspicious', risk:58 },
+  { user:'Maria Santos', email:'maria@company.com', time:'22 hrs ago', date:'Yesterday 12:18', location:'São Paulo, BR', ip:'177.136.44.21', device:'Chrome / Android', status:'success', risk:14 },
+  { user:'Unknown', email:'admin@company.com', time:'1 day ago', date:'Yesterday 10:05', location:'Kyiv, UA', ip:'194.61.2.109', device:'Nuclei/2.9.4', status:'blocked', risk:99 },
+  { user:'Arjun Nair', email:'arjun@company.com', time:'1 day ago', date:'Yesterday 08:44', location:'Kochi, IN', ip:'103.11.22.88', device:'Safari / macOS', status:'success', risk:3 },
+  { user:'Sophie Martin', email:'sophie@company.com', time:'2 days ago', date:'Mar 22 17:30', location:'Paris, FR', ip:'82.66.110.42', device:'Firefox / macOS', status:'success', risk:5 },
+  { user:'Unknown', email:'james@company.com', time:'2 days ago', date:'Mar 22 14:12', location:'Istanbul, TR', ip:'193.34.144.77', device:'curl/7.85.0', status:'failed', risk:71 },
+  { user:'Kwame Asante', email:'kwame@company.com', time:'3 days ago', date:'Mar 21 11:20', location:'Accra, GH', ip:'41.66.88.103', device:'Chrome / Windows', status:'success', risk:10 },
+  { user:'Hana Yamamoto', email:'hana@company.com', time:'4 days ago', date:'Mar 20 09:05', location:'Tokyo, JP', ip:'133.11.44.200', device:'Safari / iOS', status:'success', risk:6 },
+  { user:'Unknown', email:'emily@company.com', time:'5 days ago', date:'Mar 19 03:22', location:'Caracas, VE', ip:'200.11.44.88', device:'Python-requests/2.31', status:'failed', risk:89 },
+];
+
+let currentFilter = 'all';
+
+function getInitials(name) {
+  if (name === 'Unknown') return '?';
+  return name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+}
+function getAvatarColor(name) {
+  if (name === 'Unknown') return ['#2d1a1a','#ef4444'];
+  const idx = name.charCodeAt(0) % AVATAR_COLORS.length;
+  return AVATAR_COLORS[idx];
+}
+function getRiskClass(r) { return r < 30 ? 'low' : r < 65 ? 'med' : 'high'; }
+function getRiskColor(r) { return r < 30 ? 'var(--safe)' : r < 65 ? 'var(--warn)' : 'var(--danger)'; }
+
+function renderLoginTable(filter) {
+  currentFilter = filter;
+  const filtered = filter === 'all' ? LOGIN_DATA : LOGIN_DATA.filter(r => r.status === filter);
+  const tbody = document.getElementById('loginTableBody');
+  tbody.innerHTML = filtered.slice(0, 10).map(row => {
+    const [bg, fg] = getAvatarColor(row.user);
+    const rc = getRiskClass(row.risk);
+    const riskPct = row.risk + '%';
+    return `
+      <tr>
+        <td>
+          <div class="lt-user">
+            <div class="lt-avatar" style="background:${bg};color:${fg}">${getInitials(row.user)}</div>
+            <div>
+              <div class="lt-name">${row.user}</div>
+              <div class="lt-email">${row.email}</div>
+            </div>
+          </div>
+        </td>
+        <td class="lt-time">${row.time}<span>${row.date}</span></td>
+        <td class="lt-location">${row.location}<span>${row.ip}</span></td>
+        <td class="lt-device">${row.device}</td>
+        <td><span class="lt-status-badge ${row.status}">${row.status.toUpperCase()}</span></td>
+        <td>
+          <div class="lt-risk-bar">
+            <div class="lt-risk-track">
+              <div class="lt-risk-fill ${rc}" style="width:${riskPct}"></div>
+            </div>
+            <div class="lt-risk-num" style="color:${getRiskColor(row.risk)}">${row.risk}</div>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  // Update summary counts
+  document.getElementById('lsTotal').textContent = LOGIN_DATA.length;
+  document.getElementById('lsSuccess').textContent = LOGIN_DATA.filter(r=>r.status==='success').length;
+  document.getElementById('lsFailed').textContent = LOGIN_DATA.filter(r=>r.status==='failed').length;
+  document.getElementById('lsSuspicious').textContent = LOGIN_DATA.filter(r=>r.status==='suspicious'||r.status==='blocked').length;
+  document.getElementById('ltfInfo').textContent = `Showing 1–${Math.min(10,filtered.length)} of ${filtered.length} entries`;
+}
+
+function filterLogins(filter, btn) {
+  document.querySelectorAll('.lpa-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderLoginTable(filter);
+}
+
+renderLoginTable('all');
+
+// Enter key
+document.getElementById('urlInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') startScan();
+});
+
+
+// ═══════════════════════════════
+// USER DATABASE  (localStorage-backed)
+// ═══════════════════════════════
+
+const STORAGE_KEY = 'pg_userdb';
+const ADMIN_EMAIL = 'sravankumarbathula8@gmail.com'; // YOUR admin account
+
+// Default seed — first run only
+const DEFAULT_USERS = [
+  { id: 'admin', name: 'Admin', email: ADMIN_EMAIL, password: '6305945488', role: 'admin',  active: true, created: Date.now(), lastLogin: null, loginCount: 0 },
+];
+
+function loadUsers() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const users = JSON.parse(raw);
+      // Migrate: if stored admin email doesn't match current ADMIN_EMAIL, reset DB
+      const storedAdmin = users.find(u => u.role === 'admin' && u.id === 'admin');
+      if (storedAdmin && storedAdmin.email !== ADMIN_EMAIL) {
+        saveUsers(DEFAULT_USERS);
+        return DEFAULT_USERS;
+      }
+      return users;
+    }
+  } catch(e) {}
+  saveUsers(DEFAULT_USERS);
+  return DEFAULT_USERS;
+}
+
+function saveUsers(users) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
+}
+
+function findUser(email, password) {
+  const users = loadUsers();
+  return users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password && u.active);
+}
+
+function recordLogin(email) {
+  const users = loadUsers();
+  const idx = users.findIndex(u => u.email.toLowerCase() === email.toLowerCase());
+  if (idx >= 0) {
+    users[idx].lastLogin = new Date().toISOString();
+    users[idx].loginCount = (users[idx].loginCount || 0) + 1;
+    saveUsers(users);
+  }
+}
+
+// ═══════════════════════════════
+// ADMIN PANEL
+// ═══════════════════════════════
+
+let adminPanelOpen = false;
+let editingUserId  = null;
+
+function openAdminPanel() {
+  if (document.getElementById('adminPanel')) return;
+  adminPanelOpen = true;
+
+  const panel = document.createElement('div');
+  panel.id = 'adminPanel';
+  panel.style.cssText = `
+    position:fixed;inset:0;z-index:20000;
+    background:rgba(7,9,15,0.96);
+    display:flex;align-items:flex-start;justify-content:center;
+    overflow-y:auto;padding:40px 20px 60px;
+    backdrop-filter:blur(8px);
+    animation:fadeIn 0.3s ease;
+  `;
+  panel.innerHTML = `
+    <div style="width:100%;max-width:780px;">
+      <!-- Header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;">
+        <div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--blue);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px;">⚙ Admin Panel</div>
+          <div style="font-size:22px;font-weight:600;color:#fff;letter-spacing:-0.02em;">User Database</div>
+          <div style="font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:4px;">Manage all PhishGuard login credentials</div>
+        </div>
+        <button onclick="closeAdminPanel()" style="background:var(--bg3);border:1px solid var(--border2);color:var(--muted);font-family:var(--mono);font-size:12px;padding:8px 16px;border-radius:8px;cursor:pointer;transition:color 0.15s;">✕ Close</button>
+      </div>
+
+      <!-- Stats bar -->
+      <div id="adminStats" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px;"></div>
+
+      <!-- Add user button -->
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+        <button onclick="openUserForm()" style="background:var(--blue);color:#fff;font-family:var(--mono);font-size:12px;font-weight:600;padding:10px 20px;border:none;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:background 0.15s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='var(--blue)'">
+          + Add User
+        </button>
+      </div>
+
+      <!-- User form (hidden by default) -->
+      <div id="adminUserForm" style="display:none;background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:24px;margin-bottom:16px;">
+        <div style="font-family:var(--mono);font-size:11px;color:var(--blue);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:18px;" id="formTitle">Add New User</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+          <div>
+            <label style="display:block;font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px;">Full Name</label>
+            <input id="formName" type="text" placeholder="e.g. Jane Smith" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 14px;font-family:var(--mono);font-size:13px;color:var(--text);outline:none;" onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border2)'">
+          </div>
+          <div>
+            <label style="display:block;font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px;">Email</label>
+            <input id="formEmail" type="email" placeholder="user@company.com" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 14px;font-family:var(--mono);font-size:13px;color:var(--text);outline:none;" onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border2)'">
+          </div>
+          <div>
+            <label style="display:block;font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px;">Password</label>
+            <input id="formPassword" type="text" placeholder="Set a password" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 14px;font-family:var(--mono);font-size:13px;color:var(--text);outline:none;" onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border2)'">
+          </div>
+          <div>
+            <label style="display:block;font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px;">Role</label>
+            <select id="formRole" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 14px;font-family:var(--mono);font-size:13px;color:var(--text);outline:none;">
+              <option value="user">User</option>
+              <option value="analyst">Analyst</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+        </div>
+        <div id="formError" style="display:none;background:var(--danger-bg);border:1px solid var(--danger-border);border-radius:7px;padding:9px 14px;font-family:var(--mono);font-size:12px;color:var(--danger);margin-bottom:12px;"></div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+          <button onclick="closeUserForm()" style="background:var(--bg3);border:1px solid var(--border);color:var(--muted);font-family:var(--mono);font-size:12px;padding:9px 18px;border-radius:8px;cursor:pointer;">Cancel</button>
+          <button onclick="saveUserForm()" style="background:var(--blue);color:#fff;font-family:var(--mono);font-size:12px;font-weight:600;padding:9px 18px;border:none;border-radius:8px;cursor:pointer;" id="formSaveBtn">Save User</button>
+        </div>
+      </div>
+
+      <!-- User table -->
+      <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:14px;overflow:hidden;">
+        <div id="adminUserTable"></div>
+      </div>
+
+      <!-- Footer note -->
+      <div style="font-family:var(--mono);font-size:11px;color:var(--muted);text-align:center;margin-top:20px;">
+        All user data is stored securely in this browser's local storage. Only you (admin) can access this panel.
+      </div>
+    </div>
+  `;
+  document.body.appendChild(panel);
+  renderAdminTable();
+}
+
+function closeAdminPanel() {
+  const p = document.getElementById('adminPanel');
+  if (p) { p.style.opacity='0'; p.style.transition='opacity 0.2s'; setTimeout(()=>p.remove(),200); }
+  adminPanelOpen = false;
+  editingUserId = null;
+}
+
+function renderAdminTable() {
+  const users = loadUsers();
+  const statsEl = document.getElementById('adminStats');
+  const tableEl = document.getElementById('adminUserTable');
+  if (!statsEl || !tableEl) return;
+
+  const total   = users.length;
+  const active  = users.filter(u=>u.active).length;
+  const admins  = users.filter(u=>u.role==='admin').length;
+  statsEl.innerHTML = [
+    ['Total Users', total, '#fff'],
+    ['Active', active, 'var(--safe)'],
+    ['Admins', admins, 'var(--blue)'],
+  ].map(([l,v,c])=>`
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:16px 20px;">
+      <div style="font-family:var(--mono);font-size:22px;font-weight:600;color:${c};line-height:1;margin-bottom:4px;">${v}</div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;">${l}</div>
+    </div>
+  `).join('');
+
+  const ROLE_COLORS = { admin:'var(--blue)', analyst:'var(--warn)', user:'var(--muted)' };
+
+  tableEl.innerHTML = `
+    <div style="background:var(--bg3);border-bottom:1px solid var(--border);padding:10px 20px;display:grid;grid-template-columns:2fr 2fr 1fr 1fr 1fr 100px;gap:12px;align-items:center;">
+      ${['Name','Email','Role','Status','Last Login','Actions'].map(h=>`<div style="font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;">${h}</div>`).join('')}
+    </div>
+    ${users.map(u => {
+      const lastLogin = u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+      const isAdmin = u.email === ADMIN_EMAIL;
+      return `
+        <div style="padding:13px 20px;display:grid;grid-template-columns:2fr 2fr 1fr 1fr 1fr 100px;gap:12px;align-items:center;border-bottom:1px solid var(--border);transition:background 0.12s;" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+          <div style="font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+            ${u.name}
+            ${isAdmin ? '<span style="font-family:var(--mono);font-size:9px;background:rgba(59,130,246,0.12);color:var(--blue);padding:2px 6px;border-radius:4px;margin-left:6px;border:1px solid rgba(59,130,246,0.2);">YOU</span>' : ''}
+          </div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${u.email}</div>
+          <div><span style="font-family:var(--mono);font-size:10px;color:${ROLE_COLORS[u.role]||'var(--muted)'};text-transform:uppercase;letter-spacing:0.06em;">${u.role}</span></div>
+          <div>
+            <span style="font-family:var(--mono);font-size:10px;padding:3px 9px;border-radius:100px;letter-spacing:0.05em;
+              background:${u.active ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.08)'};
+              color:${u.active ? 'var(--safe)' : 'var(--danger)'};
+              border:1px solid ${u.active ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)'};">
+              ${u.active ? 'ACTIVE' : 'DISABLED'}
+            </span>
+          </div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--muted);">${lastLogin}</div>
+          <div style="display:flex;gap:6px;">
+            <button onclick="openUserForm('${u.id}')" title="Edit" style="background:var(--bg4);border:1px solid var(--border);color:var(--muted);font-size:12px;width:28px;height:28px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color 0.15s,border-color 0.15s;" onmouseover="this.style.color='var(--blue)';this.style.borderColor='rgba(59,130,246,0.3)'" onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">✎</button>
+            ${isAdmin ? '' : `
+            <button onclick="toggleUserActive('${u.id}')" title="${u.active?'Disable':'Enable'}" style="background:var(--bg4);border:1px solid var(--border);color:var(--muted);font-size:12px;width:28px;height:28px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color 0.15s;" onmouseover="this.style.color='var(--warn)'" onmouseout="this.style.color='var(--muted)'">${u.active?'⊘':'✓'}</button>
+            <button onclick="deleteUser('${u.id}')" title="Delete" style="background:var(--bg4);border:1px solid var(--border);color:var(--muted);font-size:12px;width:28px;height:28px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color 0.15s;" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--muted)'">✕</button>
+            `}
+          </div>
+        </div>
+      `;
+    }).join('')}
+  `;
+}
+
+function openUserForm(userId) {
+  editingUserId = userId || null;
+  const form = document.getElementById('adminUserForm');
+  const title = document.getElementById('formTitle');
+  const saveBtn = document.getElementById('formSaveBtn');
+  document.getElementById('formError').style.display = 'none';
+
+  if (userId) {
+    const users = loadUsers();
+    const u = users.find(u => u.id === userId);
+    if (!u) return;
+    document.getElementById('formName').value = u.name;
+    document.getElementById('formEmail').value = u.email;
+    document.getElementById('formPassword').value = u.password;
+    document.getElementById('formRole').value = u.role;
+    title.textContent = 'Edit User';
+    saveBtn.textContent = 'Save Changes';
+  } else {
+    document.getElementById('formName').value = '';
+    document.getElementById('formEmail').value = '';
+    document.getElementById('formPassword').value = '';
+    document.getElementById('formRole').value = 'user';
+    title.textContent = 'Add New User';
+    saveBtn.textContent = 'Save User';
+  }
+  form.style.display = 'block';
+  document.getElementById('formName').focus();
+}
+
+function closeUserForm() {
+  document.getElementById('adminUserForm').style.display = 'none';
+  editingUserId = null;
+}
+
+function saveUserForm() {
+  const name     = document.getElementById('formName').value.trim();
+  const email    = document.getElementById('formEmail').value.trim().toLowerCase();
+  const password = document.getElementById('formPassword').value;
+  const role     = document.getElementById('formRole').value;
+  const errEl    = document.getElementById('formError');
+
+  errEl.style.display = 'none';
+  if (!name)     { errEl.textContent = 'Name is required.';     errEl.style.display='block'; return; }
+  if (!email)    { errEl.textContent = 'Email is required.';    errEl.style.display='block'; return; }
+  if (!password) { errEl.textContent = 'Password is required.'; errEl.style.display='block'; return; }
+
+  const users = loadUsers();
+
+  if (editingUserId) {
+    const idx = users.findIndex(u => u.id === editingUserId);
+    if (idx < 0) return;
+    // Check email uniqueness (excluding self)
+    if (users.some((u, i) => u.email.toLowerCase() === email && i !== idx)) {
+      errEl.textContent = 'That email is already in use.'; errEl.style.display='block'; return;
+    }
+    users[idx] = { ...users[idx], name, email, password, role };
+  } else {
+    if (users.some(u => u.email.toLowerCase() === email)) {
+      errEl.textContent = 'A user with that email already exists.'; errEl.style.display='block'; return;
+    }
+    users.push({ id: 'u_' + Date.now(), name, email, password, role, active: true, created: Date.now(), lastLogin: null, loginCount: 0 });
+  }
+
+  saveUsers(users);
+  closeUserForm();
+  renderAdminTable();
+}
+
+function toggleUserActive(userId) {
+  const users = loadUsers();
+  const idx = users.findIndex(u => u.id === userId);
+  if (idx < 0) return;
+  users[idx].active = !users[idx].active;
+  saveUsers(users);
+  renderAdminTable();
+}
+
+function deleteUser(userId) {
+  if (!confirm('Delete this user? This cannot be undone.')) return;
+  const users = loadUsers().filter(u => u.id !== userId);
+  saveUsers(users);
+  renderAdminTable();
+}
+
+// ═══════════════════════════════
+// LOGIN AUTHENTICATION
+// ═══════════════════════════════
+
+let loginAttempts = 0;
+let currentUser   = null;
+
+function loginKeydown(e) {
+  if (e.key === 'Enter') submitLogin();
+}
+
+function togglePwVisibility() {
+  const input = document.getElementById('loginPassword');
+  const icon  = document.getElementById('pwEyeIcon');
+  if (input.type === 'password') {
+    input.type = 'text';
+    icon.innerHTML = '<path d="M1 1l12 12M6.5 5.5A3 3 0 0110.5 9.5M4.2 4.2C2.5 5.3 1 7 1 7s2.5 5 7 5c1.4 0 2.6-.4 3.6-1M5.5 3.2C6 3.1 6.5 3 7 3c4.5 0 7 5 7 5s-.7 1.4-1.8 2.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>';
+  } else {
+    input.type = 'password';
+    icon.innerHTML = '<path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.3"/>';
+  }
+}
+
+function showLoginError(msg) {
+  const err = document.getElementById('loginError');
+  document.getElementById('loginErrorText').textContent = msg;
+  err.classList.add('visible');
+  document.getElementById('loginEmail').classList.add('error');
+  document.getElementById('loginPassword').classList.add('error');
+  const card = document.getElementById('loginCard');
+  card.classList.remove('shake');
+  void card.offsetWidth;
+  card.classList.add('shake');
+}
+
+function clearLoginError() {
+  document.getElementById('loginError').classList.remove('visible');
+  document.getElementById('loginEmail').classList.remove('error');
+  document.getElementById('loginPassword').classList.remove('error');
+}
+
+async function submitLogin() {
+  const email    = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const btn      = document.getElementById('loginBtn');
+
+  clearLoginError();
+  if (!email)    { showLoginError('Please enter your email address.'); return; }
+  if (!password) { showLoginError('Please enter your password.'); return; }
+
+  btn.disabled = true;
+  btn.classList.add('loading');
+  await new Promise(r => setTimeout(r, 700));
+
+  const user = findUser(email, password);
+
+  btn.classList.remove('loading');
+  btn.disabled = false;
+
+  if (user) {
+    recordLogin(email);
+    currentUser = user;
+    loginAttempts = 0;
+
+    // If admin — add admin panel shortcut to nav after auth
+    if (user.role === 'admin') {
+      setTimeout(() => {
+        const nav = document.querySelector('nav');
+        if (nav && !document.getElementById('adminNavBtn')) {
+          const adminBtn = document.createElement('button');
+          adminBtn.id = 'adminNavBtn';
+          adminBtn.onclick = openAdminPanel;
+          adminBtn.style.cssText = 'background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.25);color:var(--blue);font-family:var(--mono);font-size:11px;padding:6px 14px;border-radius:7px;cursor:pointer;letter-spacing:0.04em;transition:background 0.15s;';
+          adminBtn.textContent = '⚙ Admin Panel';
+          adminBtn.onmouseover = () => adminBtn.style.background = 'rgba(59,130,246,0.18)';
+          adminBtn.onmouseout  = () => adminBtn.style.background = 'rgba(59,130,246,0.1)';
+          nav.appendChild(adminBtn);
+        }
+      }, 900);
+    }
+
+    // Dismiss login → show biometric
+    const overlay = document.getElementById('loginOverlay');
+    overlay.style.transition = 'opacity 0.4s ease';
+    overlay.style.opacity = '0';
+    setTimeout(() => {
+      overlay.remove();
+      const bio = document.getElementById('bioAuthOverlay');
+      if (bio) { bio.style.opacity = '0'; bio.style.transition = 'opacity 0.4s ease'; setTimeout(() => { bio.style.opacity = '1'; }, 50); }
+    }, 400);
+  } else {
+    loginAttempts++;
+    // Check if user exists but is disabled
+    const allUsers = loadUsers();
+    const exists = allUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+    if (exists && !exists.active) {
+      showLoginError('Your account has been disabled. Contact your administrator.');
+    } else if (loginAttempts >= 5) {
+      showLoginError('Too many failed attempts. Try again in a moment.');
+      btn.disabled = true;
+      setTimeout(() => { loginAttempts = 0; btn.disabled = false; clearLoginError(); }, 15000);
+    } else {
+      showLoginError(`Invalid email or password. ${5 - loginAttempts} attempt${5 - loginAttempts === 1 ? '' : 's'} remaining.`);
+    }
+  }
+}
+
+function ssoLogin(provider) {
+  const btns = document.querySelectorAll('.login-sso-btn');
+  const btn  = provider === 'Google' ? btns[0] : btns[1];
+  const orig = btn.innerHTML;
+  btn.innerHTML = `<span style="font-family:var(--mono);font-size:11px;color:var(--blue)">⟳ Redirecting to ${provider}...</span>`;
+  btn.disabled = true;
+  setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; showLoginError(`SSO with ${provider} is not configured.`); }, 1800);
+}
+
+function showForgotPassword() {
+  document.getElementById('loginForm').classList.add('hidden');
+  document.getElementById('forgotPanel').classList.add('visible');
+  clearLoginError();
+}
+
+function showLoginForm() {
+  document.getElementById('forgotPanel').classList.remove('visible');
+  document.getElementById('loginForm').classList.remove('hidden');
+}
+
+async function submitForgot() {
+  const email = document.getElementById('forgotEmail').value.trim();
+  const btn   = document.getElementById('forgotBtn');
+  if (!email) return;
+  btn.disabled = true; btn.classList.add('loading');
+  await new Promise(r => setTimeout(r, 1200));
+  btn.classList.remove('loading');
+  btn.innerHTML = '<span class="btn-label" style="color:#10b981">✓ Reset link sent — check your inbox</span>';
+  setTimeout(() => { btn.innerHTML = '<div class="btn-spinner"></div><span class="btn-label">Send reset link</span>'; btn.disabled = false; showLoginForm(); }, 3000);
+}
+
+function showSignupToast() {
+  const note = document.querySelector('.login-footer-note');
+  const orig = note.innerHTML;
+  note.innerHTML = '<span style="color:var(--safe)">✓ Access request sent to your admin</span>';
+  setTimeout(() => { note.innerHTML = orig; }, 3000);
+}
+
+// Hide biometric overlay initially — shown only after login
+(function() {
+  const bio = document.getElementById('bioAuthOverlay');
+  if (bio) { bio.style.opacity = '0'; bio.style.transition = 'none'; }
+})();
+
+
+// ═══════════════════════════════
+// BIOMETRIC AUTHENTICATION
+// ═══════════════════════════════
+
+const DEMO_PIN = '1234';
+let bioAttempts = 0;
+
+function setStatus(msg, type = '') {
+  const el = document.getElementById('bioStatusMsg');
+  el.textContent = msg;
+  el.className = 'bio-status-msg' + (type ? ' ' + type : '');
+}
+
+function setIconState(state) {
+  const wrap = document.getElementById('bioIconWrap');
+  wrap.className = 'bio-icon-wrap' + (state ? ' ' + state : '');
+  // Also tint the fingerprint paths
+  const svg = document.getElementById('bioFpSvg');
+  if (state === 'success') {
+    svg.querySelectorAll('path').forEach(p => {
+      if (p.getAttribute('stroke') && !p.getAttribute('stroke').includes('rgba')) {
+        p.setAttribute('stroke', '#10b981');
+      }
+    });
+  } else if (state === 'error') {
+    svg.querySelectorAll('path').forEach(p => {
+      if (p.getAttribute('stroke') && !p.getAttribute('stroke').includes('rgba')) {
+        p.setAttribute('stroke', '#ef4444');
+      }
+    });
+  } else {
+    // Reset to blue
+    const blues = ['#3b82f6', '#3b82f6', '#3b82f6', '#3b82f6', '#3b82f6', '#3b82f6', '#3b82f6', '#3b82f6', '#60a5fa', '#60a5fa'];
+    svg.querySelectorAll('path').forEach((p, i) => {
+      if (p.getAttribute('stroke') && !p.getAttribute('stroke').includes('rgba')) {
+        p.setAttribute('stroke', blues[i] || '#3b82f6');
+      }
+    });
+  }
+}
+
+async function startBiometricAuth() {
+  const btn = document.getElementById('bioAuthBtn');
+  btn.disabled = true;
+  setIconState('scanning');
+  setStatus('⟳ Initializing biometric sensor...', 'active');
+
+  // Check WebAuthn support
+  const webAuthnSupported = window.PublicKeyCredential !== undefined;
+
+  if (webAuthnSupported) {
+    try {
+      setStatus('⟳ Waiting for biometric input...', 'active');
+
+      // Create a challenge
+      const challenge = new Uint8Array(32);
+      crypto.getRandomValues(challenge);
+
+      const userId = new Uint8Array(16);
+      crypto.getRandomValues(userId);
+
+      const publicKeyOptions = {
+        challenge,
+        rp: { name: 'PhishGuard', id: location.hostname || 'localhost' },
+        user: {
+          id: userId,
+          name: 'user@phishguard.local',
+          displayName: 'PhishGuard User',
+        },
+        pubKeyCredParams: [
+          { alg: -7, type: 'public-key' },   // ES256
+          { alg: -257, type: 'public-key' },  // RS256
+        ],
+        authenticatorSelection: {
+          authenticatorAttachment: 'platform',
+          userVerification: 'required',
+        },
+        timeout: 30000,
+        attestation: 'none',
+      };
+
+      // Try to create credential (triggers Face ID / Touch ID / Windows Hello)
+      await navigator.credentials.create({ publicKey: publicKeyOptions });
+      authSuccess();
+    } catch (err) {
+      // If user cancelled or not enrolled, try get() as fallback
+      if (err.name === 'NotAllowedError' && err.message.includes('cancel')) {
+        setIconState('error');
+        setStatus('✕ Authentication cancelled', 'error');
+        btn.disabled = false;
+      } else {
+        // Fall back to simulated auth (demo mode for non-enrolled devices)
+        runSimulatedAuth(btn);
+      }
+    }
+  } else {
+    // No WebAuthn — run simulated demo
+    runSimulatedAuth(btn);
+  }
+}
+
+function runSimulatedAuth(btn) {
+  // Simulate a 2.2s biometric scan
+  const steps = [
+    [400,  'Detecting fingerprint pattern...'],
+    [900,  'Analyzing ridge minutiae...'],
+    [1500, 'Cross-referencing enrolled biometrics...'],
+    [2000, 'Verifying liveness...'],
+  ];
+  steps.forEach(([delay, msg]) => {
+    setTimeout(() => setStatus('⟳ ' + msg, 'active'), delay);
+  });
+  setTimeout(() => {
+    authSuccess();
+  }, 2400);
+}
+
+function authSuccess() {
+  setIconState('success');
+  setStatus('✓ Identity verified', 'success');
+  document.getElementById('bioAuthBtn').disabled = false;
+
+  // Small delay then dismiss overlay
+  setTimeout(() => {
+    const overlay = document.getElementById('bioAuthOverlay');
+    overlay.style.transition = 'opacity 0.5s ease';
+    overlay.style.opacity = '0';
+    setTimeout(() => overlay.remove(), 500);
+  }, 700);
+}
+
+function showPinFallback() {
+  document.getElementById('bioMainUI').style.display = 'none';
+  document.getElementById('bioPinWrap').classList.add('visible');
+  setIconState('');
+  document.getElementById('pin0').focus();
+}
+
+function showBiometricMain() {
+  document.getElementById('bioMainUI').style.display = 'block';
+  document.getElementById('bioPinWrap').classList.remove('visible');
+  clearPinInputs();
+  document.getElementById('pinHint').textContent = 'Enter 4-digit PIN (demo: 1234)';
+  document.getElementById('pinHint').style.color = 'var(--muted)';
+}
+
+function pinInput(idx) {
+  const el = document.getElementById('pin' + idx);
+  const val = el.value;
+  if (val && idx < 3) {
+    document.getElementById('pin' + (idx + 1)).focus();
+  }
+  // Auto-submit when all 4 filled
+  const pin = [0,1,2,3].map(i => document.getElementById('pin'+i).value).join('');
+  if (pin.length === 4) setTimeout(submitPin, 120);
+}
+
+function pinKey(e, idx) {
+  if (e.key === 'Backspace' && !document.getElementById('pin' + idx).value && idx > 0) {
+    document.getElementById('pin' + (idx - 1)).focus();
+  }
+}
+
+function clearPinInputs() {
+  [0,1,2,3].forEach(i => { document.getElementById('pin'+i).value = ''; });
+}
+
+function submitPin() {
+  const pin = [0,1,2,3].map(i => document.getElementById('pin'+i).value).join('');
+  if (pin.length < 4) return;
+
+  if (pin === DEMO_PIN) {
+    setIconState('success');
+    setStatus('✓ PIN accepted', 'success');
+    document.getElementById('pinSubmitBtn').disabled = true;
+    setTimeout(() => {
+      const overlay = document.getElementById('bioAuthOverlay');
+      overlay.style.transition = 'opacity 0.5s ease';
+      overlay.style.opacity = '0';
+      setTimeout(() => overlay.remove(), 500);
+    }, 700);
+  } else {
+    bioAttempts++;
+    clearPinInputs();
+    document.getElementById('pin0').focus();
+    const hint = document.getElementById('pinHint');
+    hint.style.color = 'var(--danger)';
+    hint.textContent = bioAttempts >= 3
+      ? `✕ Too many failed attempts. Try biometrics.`
+      : `✕ Incorrect PIN. ${3 - bioAttempts} attempt${3 - bioAttempts === 1 ? '' : 's'} remaining.`;
+    setIconState('error');
+    if (bioAttempts >= 3) {
+      document.getElementById('pinSubmitBtn').disabled = true;
+      setTimeout(() => {
+        showBiometricMain();
+        bioAttempts = 0;
+      }, 2000);
+    }
+  }
+}
+
+</script>
+</body>
+</html>
